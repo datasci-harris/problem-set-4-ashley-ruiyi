@@ -25,8 +25,8 @@ Please refer to the minilesson on code style here.
 ## Submission Steps (10 pts)
 1. This problem set is a paired problem set.
 2. Play paper, scissors, rock to determine who goes first. Call that person Partner 1.
-• Partner 1 (name and cnet ID):
-• Partner 2 (name and cnet ID): Wei Chen (Ashley) Liu, wliu10
+• Partner 1 (name and cnet ID): Wei Chen (Ashley) Liu, wliu10
+• Partner 2 (name and cnet ID): 
 3. Partner 1 will accept the ps4 and then share the link it creates with their partner. You can only share it with one partner so you will not be able to change it after your partner has accepted.
 4. “This submission is our work alone and complies with the 30538 integrity policy.” Add your initials to indicate your agreement: **_AL_**  **__**
 5. “I have uploaded the names of anyone else other than my partner and I worked with on the problem set here” (1 point)
@@ -42,10 +42,27 @@ Please refer to the minilesson on code style here.
 
 1. This is a fairly large dataset and we won’t be using most of the variables. Read through the rest of the problem set and look through the data dictionary to identify which variables you will need to complete the exercise, and use the tool on data.cms.gov into restrict to those variables (“Manage Columns”) before exporting (“Export”). Download this for 2016 and call it pos2016.csv. What are the variables you pulled?
 
+PRVDR_CTGRY_SBTYP_CD == 01 #short-term
+PRVDR_CTGRY_CD == 01 #hospital
+PRVDR_NUM #CMS
+PGM_TRMNTN_CD #termination
+CRTFCTN_ACTN_TYPE_CD == 3 #termination
+ZIP_CD #zip code
 
 2. Import your pos2016.csv file. We want to focus on short-term hospitals. These are identified as facilities with provider type code 01 and subtype code 01. Subset your data to these facilities. How many hospitals are reported in this data? Does this number make sense? Cross-reference with other sources and cite the number you compared it to. If it differs, why do you think it could differ?
     a.
+```{python}
+import os
+absolute_path = r"/Users/ashleyliu/Downloads"
+path = os.path.join(absolute_path, "pos2016.csv")
+pos2016 = pd.read_csv(path)
+```
     b.
+```{python}
+st_hospitals2016 = pos2016[(pos2016["PRVDR_CTGRY_SBTYP_CD"] == 1) & (pos2016["PRVDR_CTGRY_CD"] == 1)]
+st_hospitals2016.shape
+```
+
 3. Repeat the previous 3 steps with 2017Q4, 2018Q4, and 2019Q4 and then append them together. Plot the number of observations in your dataset by year.
 4. Each hospital is identified by its CMS certification number. Plot the number of unique hospitals in your dataset per year. Compare this to your plot in the previous step. What does this tell you about the structure of the data?
     a.
