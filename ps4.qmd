@@ -126,6 +126,44 @@ Compare to the previous plot, the whole plot looks smiliar to each other, and th
 ## Identify hospital closures in POS file (15 pts) (*)
 
 1. Use this definition to create a list of all hospitals that were active in 2016 that were suspected to have closed by 2019. Record the facility name and zip of each hospital as well as the year of suspected closure (when they become terminated or disappear from the data). How many hospitals are there that fit this definition?
+1. Use this definition to create a list of all hospitals that were active in 2016 that were suspected to have closed by 2019. Record the facility name and zip of each hospital as well as the year of suspected closure (when they become terminated or disappear from the data). How many hospitals are there that fit this definition?
+```{python}
+active_2016 = pos2016[pos2016['PGM_TRMNTN_CD'] == 0][['PRVDR_NUM', 'FAC_NAME', 'ZIP_CD']]
+filter_2017 = pd.merge(active_2016, pos2017, on='PRVDR_NUM', how='left')
+
+df_filtered_2017 = filter_2017[(filter_2017['PGM_TRMNTN_CD'] != 0) & (filter_2017['PGM_TRMNTN_CD'].notna())]
+
+df_filtered_2017['closureday'] = 2017
+
+df_filtered_2017
+```
+```{python}
+active_2017 = pos2017[pos2017['PGM_TRMNTN_CD'] == 0][['PRVDR_NUM', 'FAC_NAME', 'ZIP_CD']]
+filter_2018 = pd.merge(active_2017, pos2018, on='PRVDR_NUM', how='left')
+
+df_filtered_2018 = filter_2018[(filter_2018['PGM_TRMNTN_CD'] != 0) & (filter_2018['PGM_TRMNTN_CD'].notna())]
+
+df_filtered_2018['closureday'] = 2018
+
+df_filtered_2018
+```
+```{python}
+active_2018 = pos2019[pos2019['PGM_TRMNTN_CD'] == 0][['PRVDR_NUM', 'FAC_NAME', 'ZIP_CD']]
+filter_2019 = pd.merge(active_2018, pos2019, on='PRVDR_NUM', how='left')
+
+df_filtered_2019 = filter_2019[(filter_2019['PGM_TRMNTN_CD'] != 0) & (filter_2019['PGM_TRMNTN_CD'].notna())]
+
+df_filtered_2019['closureday'] = 2019
+
+df_filtered_2019 = df_filtered_2019[['PRVDR_NUM', 'FAC_NAME_x', 'ZIP_CD_x', 'closureday']]
+df_filtered_2018 = df_filtered_2018[['PRVDR_NUM', 'FAC_NAME_x', 'ZIP_CD_x', 'closureday']]
+df_filtered_2017 = df_filtered_2017[['PRVDR_NUM', 'FAC_NAME_x', 'ZIP_CD_x', 'closureday']]
+result = pd.concat([df_filtered_2017, df_filtered_2018, df_filtered_2019], ignore_index=True)
+result
+```
+3796 hospitals fit this definition.
+
+
 2. Sort this list of hospitals by name and report the names and year of suspected closure for the first 10 rows.
 3. However, not all suspected hospital closures are true closures. For example, in the case of a merger, a CMS certification number will be appear to be “terminated,” but then the hospital re-appear under a similar name/address with a new CMS certification number in the next year. As a first pass to address this, remove any suspected hospital closures that are in zip codes where the number of active hospitals does not decrease in the year after the suspected closure.
     a. Among the suspected closures, how many hospitals fit this definition of potentially being a merger/acquisition? After correcting for this, how many hospitals do you have left
