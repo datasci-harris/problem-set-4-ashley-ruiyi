@@ -148,7 +148,7 @@ df_filtered_2018['closureday'] = 2018
 df_filtered_2018
 ```
 ```{python}
-active_2018 = pos2019[pos2019['PGM_TRMNTN_CD'] == 0][['PRVDR_NUM', 'FAC_NAME', 'ZIP_CD']]
+active_2018 = pos2018[pos2018['PGM_TRMNTN_CD'] == 0][['PRVDR_NUM', 'FAC_NAME', 'ZIP_CD']]
 filter_2019 = pd.merge(active_2018, pos2019, on='PRVDR_NUM', how='left')
 
 df_filtered_2019 = filter_2019[(filter_2019['PGM_TRMNTN_CD'] != 0) & (filter_2019['PGM_TRMNTN_CD'].notna())]
