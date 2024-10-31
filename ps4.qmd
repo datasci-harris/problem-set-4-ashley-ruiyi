@@ -97,8 +97,8 @@ alt.Chart(year_counts).mark_bar(color = "skyblue").encode(
     alt.Y("count:Q", title = "Number of Observations")
 ).properties(
     title = "Number of Observations by Year",
-    width = 600,
-    height = 400
+    width = 250,
+    height = 250
 )
 ```
 
@@ -116,7 +116,9 @@ alt.Chart(unique_hospitals_per_year).mark_bar(color = "skyblue").encode(
     alt.X("year:O", title = "Year"),
     alt.Y("unique_hospital_count:Q", title = "Number of Unique Hospitals")
 ).properties(
-    title = "Number of Unique Hospitals Per Year"
+    title = "Number of Unique Hospitals Per Year",
+    width = 250,
+    height = 250
 )
 ```
 
@@ -155,9 +157,15 @@ for file in files:
 import geopandas as gpd
 zip_codes = gpd.read_file(os.path.join(directory_path, "gz_2010_us_860_00_500k.shp"))
 zip_codes_tx = zip_codes[zip_codes["NAME"].str.startswith(("75", "76", "77", "78", "79", "885"))]
+```
+
+```{python}
 st_hospitals2016["ZIP_CD"] = st_hospitals2016["ZIP_CD"].astype(int)
 hospitals_per_zip_2016 = st_hospitals2016.groupby("ZIP_CD").size().reset_index(name = "hospital_count")
 hospitals_per_zip_2016
+```
+
+```{python}
 zip_codes_tx["NAME"] = zip_codes_tx["NAME"].astype(int)
 hospitals_per_zip_2016["ZIP_CD"] = hospitals_per_zip_2016["ZIP_CD"].astype(int)
 merged_data = zip_codes_tx.merge(hospitals_per_zip_2016, left_on = "NAME", right_on = "ZIP_CD", how = "left")
@@ -187,12 +195,109 @@ merged_data.plot(
 ## Effects of closures on access in Texas (15 pts)
 
 1. Using the corrected hospital closures dataset from the first section, create a list of directly affected zip codes in Texas – that is, those with at least one closure in 2016-2019. Display a table of the number of zip codes vs. the number of closures they experienced.
+
+```{python}
+combined_df["ZIP_CD"] = combined_df["ZIP_CD"].astype(int)
+merged_tx = zip_codes_tx.merge(combined_df, left_on = "NAME", right_on = "ZIP_CD", how = "left")
+closures_per_zip = merged_tx.groupby("NAME").size().reset_index(name = "closure_count")
+zip_code_closure_summary = closures_per_zip.groupby("closure_count").size().reset_index(name = "zip_code_count")
+zip_code_closure_summary
+```
+
 2. Plot a choropleth of which Texas zip codes were directly affected by a closure in 2016-2019 – there was at least one closure within the zip code. How many directly affected zip codes are there in Texas?
+
+```{python}
+affected_zip_codes = closures_per_zip["NAME"].unique()
+num_affected_zip_codes = len(affected_zip_codes)
+print(f"Number of directly affected zip codes in Texas: {num_affected_zip_codes}")
+```
+```{python}
+affected_zip_codes_df = zip_codes_tx[zip_codes_tx["NAME"].isin(affected_zip_codes)]
+affected_zip_codes_df.plot(
+    color = "red",           
+    edgecolor = "black",     
+    legend = True,
+    figsize = (12, 10)
+)
+```
+
 3. Then identify all the indirectly affected zip codes: Texas zip codes within a 10-mile radius of the directly affected zip codes. To do so, first create a GeoDataFrame of the directly affected zip codes. Then create a 10-mile buffer around them. Then, do a spatial join with the overall Texas zip code shapefile. How many indirectly affected zip codes are there in Texas?
+
+```{python}
+affected_zip_codes_gdf = gpd.GeoDataFrame(affected_zip_codes_df, geometry = "geometry")
+affected_zip_codes_gdf.crs = "EPSG:4326" 
+affected_zip_codes_gdf = affected_zip_codes_gdf.to_crs(epsg = 3857) 
+```
+```{python}
+buffer_distance = 10 * 1609.34 
+buffered = affected_zip_codes_gdf.buffer(buffer_distance)
+buffered_gdf = gpd.GeoDataFrame(geometry = buffered)
+buffered_gdf.crs = affected_zip_codes_gdf.crs
+```
+```{python}
+indirectly_affected_zip_codes = gpd.sjoin(zip_codes_tx, buffered_gdf, how = "inner", predicate = "intersects")
+num_indirectly_affected_zip_codes = indirectly_affected_zip_codes["NAME"].nunique()
+print(f"Number of indirectly affected zip codes in Texas: {num_indirectly_affected_zip_codes}")
+```
+
 4. Make a choropleth plot of the Texas zip codes with a different color for each of the 3 categories: directly affected by a closure, within 10 miles of closure but not directly affected, or not affected.
+
+```{python}
+directly_affected = set(affected_zip_codes_gdf["NAME"])
+indirectly_affected = set(indirectly_affected_zip_codes["NAME"])
+def categorize_zip_code(row):
+    if row["NAME"] in directly_affected:
+        return "Directly Affected"
+    elif row["NAME"] in indirectly_affected:
+        return "Indirectly Affected"
+    else:
+        return "Not Affected"
+zip_codes_tx["category"] = zip_codes_tx.apply(categorize_zip_code, axis = 1)
+```
+
+```{python}
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+color_map = {
+    "Directly Affected": "red",
+    "Indirectly Affected": "orange",
+    "Not Affected": "lightgray"
+}
+zip_codes_tx["color"] = zip_codes_tx["category"].map(color_map)
+fig, ax = plt.subplots(1, 1, figsize = (12, 10))
+zip_codes_tx.plot(color = zip_codes_tx["color"], edgecolor = "black", linewidth = 0.2, ax = ax)
+legend_handles = [Patch(color = color, label = label) for label, color in color_map.items()]
+ax.legend(handles = legend_handles, title = "Impact Category")
+ax.set_title("Texas Zip Codes by Hospital Closure Impact (2016-2019)", fontsize = 16)
+ax.set_axis_off()
+plt.show()
+```
 
 ## Reflecting on the exercise (10 pts) 
 
 1. The “first-pass” method we’re using to address incorrectly identified closures in the data is imperfect. Can you think of some potential issues that could arise still and ways to do a better job at confirming hospital closures?
+
+Potential Issues:
+• Data Quality and Completeness:
+Missing or Incomplete Data: Records may be missing important information, leading to incorrect conclusions about closures.
+Inconsistent Data: Variations in naming conventions (e.g., "hospital" vs. "medical center") can lead to misidentification.
+• Timing and Reporting Lag:
+Delayed Reporting: Hospitals may close but not report the closure immediately, resulting in outdated information.
+Temporary Closures: Some facilities might be temporarily closed for renovations or other reasons, which could be misclassified as permanent closures.
+• Misclassification of Facility Types:
+Ambiguous Categories: Facilities that change their service offerings (e.g., from inpatient to outpatient) might not be classified correctly, affecting closure data.
+• Sampling Bias:
+Over-reliance on a Single Data Source: Relying solely on one data source (e.g., administrative records) can lead to oversight of closures not reported in that dataset.
+
+Improved Confirmation Methods:
+• Cross-Referencing Multiple Data Sources:
+Utilize Multiple Databases: Combine data from various sources, such as state health departments, federal databases (like Medicare), and local health agencies, to get a more comprehensive view of hospital closures.
+Community Reports: Engage with local communities or news reports to gather anecdotal evidence of closures.
+• Temporal Analysis:
+Longitudinal Studies: Analyze trends over time to differentiate between permanent and temporary closures and understand the context of changes.
+Regular Updates: Establish a regular update mechanism for closure data to account for recent changes.
+• Standardization of Data:
+Implement Consistent Naming Conventions: Develop standardized protocols for recording hospital data to reduce ambiguity and improve comparability.
+Establish a Closure Definition: Clearly define what constitutes a closure (e.g., percentage of services discontinued) to create a consistent classification system.
 
 2. Consider the way we are identifying zip codes affected by closures. How well does this reflect changes in zip-code-level access to hospitals? Can you think of some ways to improve this measure?
