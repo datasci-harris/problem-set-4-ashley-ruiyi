@@ -158,10 +158,54 @@ result.shape
 There are 5642 hospitals that fit this definition.
 
 2. Sort this list of hospitals by name and report the names and year of suspected closure for the first 10 rows.
+```{python}
+result = result.sort_values(by='FAC_NAME_x').reset_index(drop=True)
+result = result.rename(columns={'FAC_NAME_x': 'FAC_NAME'})
+result = result.rename(columns={'ZIP_CD_x': 'ZIP_CD'})
+result.head(10)
+```
+
 3. However, not all suspected hospital closures are true closures. For example, in the case of a merger, a CMS certification number will be appear to be “terminated,” but then the hospital re-appear under a similar name/address with a new CMS certification number in the next year. As a first pass to address this, remove any suspected hospital closures that are in zip codes where the number of active hospitals does not decrease in the year after the suspected closure.
     a. Among the suspected closures, how many hospitals fit this definition of potentially being a merger/acquisition? After correcting for this, how many hospitals do you have left
+```{python}
+active_counts_2017 = pos2017[pos2017['PGM_TRMNTN_CD'] == 0].groupby('ZIP_CD').size().rename('active_2017')
+active_counts_2018 = pos2018[pos2018['PGM_TRMNTN_CD'] == 0].groupby('ZIP_CD').size().rename('active_2018')
+active_counts_2019 = pos2019[pos2019['PGM_TRMNTN_CD'] == 0].groupby('ZIP_CD').size().rename('active_2019')
+result_1 = result_1.rename(columns={'ZIP_CD_x': 'ZIP_CD'})
+result_2 = result_1.merge(active_counts_2017, on='ZIP_CD', how='left')
+result_3 = result_2.merge(active_counts_2018, on='ZIP_CD', how='left')
+result_4 = result_3.merge(active_counts_2019, on='ZIP_CD', how='left')
+
+def is_true_closure(row):
+    if row['closureday'] == 2017:
+        return row['active_2017'] > row['active_2018']
+    elif row['closureday'] == 2018:
+        return row['active_2018'] > row['active_2019']
+    elif row['closureday'] == 2019:
+        return pd.notna(row['active_2019'])
+    return False
+
+result_4['true_closure'] = result_4.apply(is_true_closure, axis=1)
+potential_mergers = result_4[~result_4['true_closure']]
+result_4 = result_4[result_4['true_closure']]
+
+final_count = result_4.shape[0]
+potential_merger_count = potential_mergers.shape[0]
+
+final_count, potential_merger_count
+```
+3118 hospitals fit this definition of potentially being a merger/acquisition.
+After correcting for this, 2524 hospitals have left.
+
     b. Sort this list of corrected hospital closures by name and report the first 10 rows.
-    c.
+```{python}
+result_4 = result_4[['PRVDR_NUM', 'FAC_NAME_x', 'ZIP_CD', 'PRVDR_CTGRY_SBTYP_CD', 'PRVDR_CTGRY_CD', 'PGM_TRMNTN_CD', 'CRTFCTN_ACTN_TYPE_CD', 'closureday']]
+result_4 = result_4.rename(columns={'FAC_NAME_x': 'FAC_NAME'})
+result_sorted = result_4.sort_values(by='FAC_NAME').reset_index(drop=True)
+top_10_closures = result_sorted.head(10)
+
+top_10_closures
+```
 
 ## Download Census zip code shapefile (10 pt) 
 
@@ -209,16 +253,132 @@ merged_data.plot(
 ## Calculate zip code’s distance to the nearest hospital (20 pts) (*)
 
 1. Create a GeoDataFrame for the centroid of each zip code nationally: zips_all_centroids. What are the dimensions of the resulting GeoDataFrame? What do each of the columns mean?
+```{python}
+import geopandas as gpd
+filepath = r"C:\Users\X1\Desktop\Github\fall2024\problem-set-4-ashley-ruiyi\gz_2010_us_860_00_500k\gz_2010_us_860_00_500k.shp"
+data = gpd.read_file(filepath)
+```
+```{python}
+data["centroid"] = data.geometry.centroid
+zips_all_centroids = data.set_geometry("centroid")
+dimensions = zips_all_centroids.shape
+print(f"Dimensions of the GeoDataFrame: {dimensions}")
+```
+GEO_ID: A unique geographic identifier assigned to each area by the Census Bureau. This ID is often useful for tracking and linking specific geographic areas in other datasets.
+
+ZCTA5: Stands for ZIP Code Tabulation Area (ZCTA), which represents a generalized area based on the ZIP code. ZCTAs are created by the Census Bureau to approximate postal ZIP codes for mapping and demographic purposes, though they may not always match postal ZIP codes precisely.
+
+NAME: Typically represents the name or label of the area, which, for ZCTAs, might be similar to the ZCTA5 value but in a different format.
+
+LSAD: Likely stands for Legal/Statistical Area Description. This field usually indicates the type of geographic area or how it’s designated (e.g., city, county, ZIP code area).
+
+CENSUSAREA: Indicates the land area of the ZCTA, likely in square miles or another unit of measurement. This is calculated by the Census Bureau and can help in geographic or demographic analyses.
+
+geometry: This column contains the polygon geometry of each ZCTA, representing its full spatial shape or boundary. This is useful for mapping and for calculating spatial relationships.
+
+centroid: The calculated geometric center of each ZCTA’s boundary. This is a single point that represents the "average" location within the boundary and will be helpful for calculating distances to nearby hospitals.
+
+Each of these columns provides geographic or descriptive information about each ZIP code area (ZCTA) and could be useful depending on your specific analytical needs.
+
 2. Create two GeoDataFrames as subsets of zips_all_centroids. First, create all zip codes in Texas: zips_texas_centroids. Then, create all zip codes in Texas or a bordering state: zips_texas_borderstates_centroids, using the zip code prefixes to make these subsets. How many unique zip codes are in each of these subsets? To do this, create a function that takes in two polygons and returns a boolean (true or false) if the polygons intersect. Combine all the zipcodes in texas into one polygon and then use this function to identify the bordering states.
+```{python}
+zips_texas_centroids = zips_all_centroids[zips_all_centroids["ZCTA5"].str.startswith(("75", "76", "77", "78", "79"))]
+border_state_prefixes = ("70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "87", "88")
+zips_texas_borderstates_centroids = zips_all_centroids[zips_all_centroids["ZCTA5"].str.startswith(border_state_prefixes)]
+unique_texas_zipcodes = zips_texas_centroids["ZCTA5"].nunique()
+
+unique_borderstates_zipcodes = zips_texas_borderstates_centroids["ZCTA5"].nunique()
+unique_texas_zipcodes, unique_borderstates_zipcodes
+```
+
 3. Then create a subset of zips_texas_borderstates_centroids that contains only the zip codes with at least 1 hospital in 2016. Call the resulting Geo-DataFrame zips_withhospital_centroids What kind of merge did you decide to do, and what variable are you merging on?
+```{python}
+pos2016['ZIP_CD'] = pos2016['ZIP_CD'].astype(str).str.split('.').str[0].str.zfill(5)
+
+zips_texas_borderstates_centroids = zips_texas_borderstates_centroids.copy()  # Make a copy to avoid warning
+zips_texas_borderstates_centroids['ZCTA5'] = zips_texas_borderstates_centroids['ZCTA5'].astype(str).str.zfill(5)
+
+zips_texas_borderstates_centroids = zips_texas_borderstates_centroids.rename(columns={'ZCTA5': 'ZIP_CD'})
+
+zips_withhospital_centroids = zips_texas_borderstates_centroids.merge(
+    pos2016, on='ZIP_CD', how='inner')
+```
+An inner merge on the `ZIP_CD` variable was used to match ZIP codes between `zips_texas_borderstates_centroids` and `pos2016`. This approach ensures `zips_withhospital_centroids` contains only ZIP code centroids in Texas and bordering states with at least one hospital in 2016. The `ZIP_CD` formatting was aligned for consistency across both datasets.
+
 4. For each zip code in zips_texas_centroids, calculate the distance to the nearest zip code with at least one hospital in zips_withhospital_centroids.
     a. This is a computationally-intensive join. Before attempting to do the entire join, subset to 10 zip codes in zips_texas_centroids and try the join. How long did it take? Approximately how long do you estimate the entire procedure will take?
+```{python}
+import time
+
+projected_zips_texas_centroids = zips_texas_centroids.to_crs(epsg=5070)
+projected_zips_withhospital_centroids = zips_withhospital_centroids.to_crs(epsg=5070)
+
+sample_zips = projected_zips_texas_centroids.sample(10, random_state=1)
+
+start_time = time.time()
+sample_distances = gpd.sjoin_nearest(
+    sample_zips,
+    projected_zips_withhospital_centroids,
+    how="inner",
+    distance_col="distance"
+)
+end_time = time.time()
+sample_time = end_time - start_time
+
+estimated_total_time = (sample_time / 10) * len(projected_zips_texas_centroids)
+
+print(f"Sample time for 10 zip codes: {sample_time:.2f} seconds")
+print(f"Estimated total time for all zip codes: {estimated_total_time:.2f} seconds")
+```
     b. Now try doing the full calculation and time how long it takes. How close is it to your estimation?
+```{python}
+start_time_all =time.time()
+all_distances = gpd.sjoin_nearest(
+    projected_zips_texas_centroids,
+    projected_zips_withhospital_centroids,
+    how="inner",
+    distance_col="distance"
+)
+end_time_all = time.time()
+all_time = end_time_all - start_time_all
+print(f"Actual total time for all zip codes: {all_time:.2f} seconds")
+```
     c. Look into the .prj file and report which unit it is in. Convert the given unit to miles, using an appropriate conversion you find online (estimates are okay).
+The actual runtime (0.06 seconds) was much faster than the estimated 2.48 seconds, likely due to sample time variability, GeoPandas optimizations for larger datasets, and improved efficiency from using a projected coordinate system. This discrepancy shows how appropriate transformations and processing methods can greatly enhance computation speed.
+
 5. Calculate the average distance to the nearest hospital for each zip code in Texas. What unit is this in? Report the average distance in miles. Does this value make sense? Map the value for each zip code.
-    a.
-    b.
-    c.
+```{python}
+average_distance = all_distances["distance"].mean()
+print(f"Average distance to nearest hospital: {average_distance:.2f} meters")
+average_distance_miles = average_distance / 1609.344
+print(f"Average distance to nearest hospital: {average_distance_miles:.2f} miles")
+```
+    a. What unit is this in?
+Meter.
+    b. Report the average distance in miles. Does this value make sense?
+3.34 miles. An average distance of 3.34 miles to the nearest hospital for Texas zip codes seems reasonable, particularly for urban or suburban areas where hospitals are relatively accessible. However, this average might be influenced by the presence of densely populated regions with more hospitals close by, as well as some rural areas that may have larger distances to hospitals. It would be beneficial to consider the spread of distances or map the distribution to understand any outliers or variations better.
+    c. Map the value for each zip code.
+```{python}
+alt.data_transformers.enable("default", max_rows=None)
+all_distances["centroid_x"] = all_distances.geometry.centroid.x
+all_distances["centroid_y"] = all_distances.geometry.centroid.y
+all_distances["distance_miles"] = all_distances["distance"] / 1609.34
+
+all_distances_df = all_distances[["centroid_x", "centroid_y", "distance_miles", "ZCTA5"]].copy()
+
+alt_map = alt.Chart(all_distances_df).mark_circle().encode(
+    longitude="centroid_x:Q",
+    latitude="centroid_y:Q",
+    color=alt.Color("distance_miles:Q", scale=alt.Scale(scheme="blues"), title="Distance to Nearest Hospital (miles)"),
+    tooltip=["ZCTA5:O", "distance_miles:Q"]
+).properties(
+    width=600,
+    height=400,
+    title="Distance to Nearest Hospital by Texas Zip Code"
+)
+
+alt_map
+```
     
 ## Effects of closures on access in Texas (15 pts)
 
@@ -329,3 +489,4 @@ Implement Consistent Naming Conventions: Develop standardized protocols for reco
 Establish a Closure Definition: Clearly define what constitutes a closure (e.g., percentage of services discontinued) to create a consistent classification system.
 
 2. Consider the way we are identifying zip codes affected by closures. How well does this reflect changes in zip-code-level access to hospitals? Can you think of some ways to improve this measure?
+The current method of identifying zip codes affected by hospital closures may not fully capture changes in access, as it only reflects the presence or absence of hospitals. Access is also impacted by proximity to hospitals in neighboring zip codes, hospital capacity and services, population density, and demographics. Some zip codes may have good access to hospitals nearby, even if they lack one within their own boundaries. Additionally, closures of specialized or high-capacity facilities could have a greater impact. Including travel infrastructure and transportation availability would also better represent true accessibility. Factoring in these elements would create a more nuanced and accurate measure of changes in hospital access.
