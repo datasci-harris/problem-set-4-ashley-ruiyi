@@ -56,6 +56,7 @@ ZIP_CD #zip code
 FAC_NAME #facility name
 
 ```{python}
+import pandas as pd
 import os
 absolute_path = r"/Users/ashleyliu/Downloads"
 path = os.path.join(absolute_path, "pos2016.csv")
@@ -91,7 +92,6 @@ st_hospitals2019["year"] = 2019
 ```
 
 ```{python}
-import pandas as pd
 combined_df = pd.concat([st_hospitals2016, st_hospitals2017, st_hospitals2018, st_hospitals2019], ignore_index = True)
 import altair as alt
 year_counts = combined_df["year"].value_counts().reset_index()
