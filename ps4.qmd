@@ -141,8 +141,6 @@ filter_2017 = pd.merge(active_2016, pos2017, on='PRVDR_NUM', how='left')
 df_filtered_2017 = filter_2017[(filter_2017['PGM_TRMNTN_CD'] != 0) & (filter_2017['PGM_TRMNTN_CD'].notna())]
 
 df_filtered_2017['closureday'] = 2017
-
-df_filtered_2017
 ```
 ```{python}
 active_2017 = pos2017[pos2017['PGM_TRMNTN_CD'] == 0][['PRVDR_NUM', 'FAC_NAME', 'ZIP_CD']]
@@ -151,8 +149,6 @@ filter_2018 = pd.merge(active_2017, pos2018, on='PRVDR_NUM', how='left')
 df_filtered_2018 = filter_2018[(filter_2018['PGM_TRMNTN_CD'] != 0) & (filter_2018['PGM_TRMNTN_CD'].notna())]
 
 df_filtered_2018['closureday'] = 2018
-
-df_filtered_2018
 ```
 ```{python}
 active_2018 = pos2018[pos2018['PGM_TRMNTN_CD'] == 0][['PRVDR_NUM', 'FAC_NAME', 'ZIP_CD']]
@@ -211,7 +207,7 @@ After correcting for this, 2524 hospitals have left.
 
     b. Sort this list of corrected hospital closures by name and report the first 10 rows.
 ```{python}
-result_4 = result_4[['PRVDR_NUM', 'FAC_NAME_x', 'ZIP_CD', 'PRVDR_CTGRY_SBTYP_CD', 'PRVDR_CTGRY_CD', 'PGM_TRMNTN_CD', 'CRTFCTN_ACTN_TYPE_CD', 'closureday']]
+result_4 = result_4[['PRVDR_NUM', 'FAC_NAME_x', 'ZIP_CD', 'closureday', 'PRVDR_CTGRY_SBTYP_CD', 'PRVDR_CTGRY_CD', 'PGM_TRMNTN_CD', 'CRTFCTN_ACTN_TYPE_CD']]
 result_4 = result_4.rename(columns={'FAC_NAME_x': 'FAC_NAME'})
 result_sorted = result_4.sort_values(by='FAC_NAME').reset_index(drop=True)
 top_10_closures = result_sorted.head(10)
@@ -393,8 +389,8 @@ alt_map
 1. Using the corrected hospital closures dataset from the first section, create a list of directly affected zip codes in Texas – that is, those with at least one closure in 2016-2019. Display a table of the number of zip codes vs. the number of closures they experienced.
 
 ```{python}
-result_4["ZIP_CD_x"] = result_4["ZIP_CD_x"].astype(int)
-merged_tx = zip_codes_tx.merge(result_4, left_on = "NAME", right_on = "ZIP_CD_x", how = "left")
+result_4["ZIP_CD"] = result_4["ZIP_CD"].astype(int)
+merged_tx = zip_codes_tx.merge(result_4, left_on = "NAME", right_on = "ZIP_CD", how = "left")
 closures_per_zip = merged_tx.groupby("NAME").size().reset_index(name = "closure_count")
 zip_code_closure_summary = closures_per_zip.groupby("closure_count").size().reset_index(name = "zip_code_count")
 zip_code_closure_summary
@@ -413,7 +409,7 @@ affected_zip_codes_df.plot(
     color = "red",           
     edgecolor = "black",     
     legend = True,
-    figsize = (12, 10)
+    figsize = (8, 8)
 )
 ```
 
@@ -460,7 +456,7 @@ color_map = {
     "Not Affected": "lightgray"
 }
 zip_codes_tx["color"] = zip_codes_tx["category"].map(color_map)
-fig, ax = plt.subplots(1, 1, figsize = (12, 10))
+fig, ax = plt.subplots(1, 1, figsize = (8, 8))
 zip_codes_tx.plot(color = zip_codes_tx["color"], edgecolor = "black", linewidth = 0.2, ax = ax)
 legend_handles = [Patch(color = color, label = label) for label, color in color_map.items()]
 ax.legend(handles = legend_handles, title = "Impact Category")
