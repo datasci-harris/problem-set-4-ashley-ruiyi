@@ -45,6 +45,94 @@ warnings.filterwarnings("ignore")
 
 ## Download and explore the Provider of Services (POS) file (10 pts)
 
+1. This is a fairly large dataset and we won’t be using most of the variables. Read through the rest of the problem set and look through the data dictionary to identify which variables you will need to complete the exercise, and use the tool on data.cms.gov into restrict to those variables (“Manage Columns”) before exporting (“Export”). Download this for 2016 and call it pos2016.csv. What are the variables you pulled?
+
+PRVDR_CTGRY_SBTYP_CD == 01 #short-term
+PRVDR_CTGRY_CD == 01 #hospital
+PRVDR_NUM #CMS
+PGM_TRMNTN_CD #termination
+CRTFCTN_ACTN_TYPE_CD == 3 #termination
+ZIP_CD #zip code
+FAC_NAME #facility name
+
+```{python}
+import pandas as pd
+import os
+absolute_path = r"/Users/ashleyliu/Downloads"
+path = os.path.join(absolute_path, "pos2016.csv")
+pos2016 = pd.read_csv(path)
+```
+
+2. Import your pos2016.csv file. We want to focus on short-term hospitals. These are identified as facilities with provider type code 01 and subtype code 01. Subset your data to these facilities. How many hospitals are reported in this data? Does this number make sense? Cross-reference with other sources and cite the number you compared it to. If it differs, why do you think it could differ?
+    a.
+```{python}
+st_hospitals2016 = pos2016[(pos2016["PRVDR_CTGRY_SBTYP_CD"] == 1) & (pos2016["PRVDR_CTGRY_CD"] == 1)]
+st_hospitals2016.shape
+```
+
+    b.
+There are 7245 hospitals are reported in this data. From Statista, the website, "Number of all hospitals in the United States from 1975 to 2022", shows that there were 5534 hospitals in 2016. Based on these two numbers, there is a discrepancy, and there are many factors can cause this to happen. For example, the difference in definition to count as hospitals, or data errors like dupilication can both cause the difference in numbers.
+
+3. Repeat the previous 3 steps with 2017Q4, 2018Q4, and 2019Q4 and then append them together. Plot the number of observations in your dataset by year.
+
+```{python}
+st_hospitals2016["year"] = 2016
+
+path = os.path.join(absolute_path, "pos2017.csv")
+pos2017 = pd.read_csv(path)
+st_hospitals2017 = pos2017[(pos2017["PRVDR_CTGRY_SBTYP_CD"] == 1) & (pos2017["PRVDR_CTGRY_CD"] == 1)]
+st_hospitals2017["year"] = 2017
+
+pos2018 = pd.read_csv(r"/Users/ashleyliu/Downloads/pos2018.csv", encoding = "latin1")
+st_hospitals2018 = pos2018[(pos2018["ï»¿PRVDR_CTGRY_SBTYP_CD"] == 1) & (pos2018["PRVDR_CTGRY_CD"] == 1)]
+st_hospitals2018["year"] = 2018
+
+pos2019 = pd.read_csv(r"/Users/ashleyliu/Downloads/pos2019.csv", encoding = "latin1")
+st_hospitals2019 = pos2019[(pos2019["ï»¿PRVDR_CTGRY_SBTYP_CD"] == 1) & (pos2019["PRVDR_CTGRY_CD"] == 1)]
+st_hospitals2019["year"] = 2019
+```
+
+```{python}
+combined_df = pd.concat([st_hospitals2016, st_hospitals2017, st_hospitals2018, st_hospitals2019], ignore_index = True)
+import altair as alt
+year_counts = combined_df["year"].value_counts().reset_index()
+year_counts.columns = ["year", "count"]
+alt.Chart(year_counts).mark_bar(color = "skyblue").encode(
+    alt.X("year:O", title = "Year", sort = "ascending"),
+    alt.Y("count:Q", title = "Number of Observations")
+).properties(
+    title = "Number of Observations by Year",
+    width = 250,
+    height = 250
+)
+```
+
+4. Each hospital is identified by its CMS certification number. Plot the number of unique hospitals in your dataset per year. Compare this to your plot in the previous step. What does this tell you about the structure of the data?
+    a.
+```{python}
+unique_hospitals_per_year = (
+    combined_df
+    .groupby("year")["PRVDR_NUM"]
+    .nunique()
+    .reset_index()
+)
+unique_hospitals_per_year.columns = ["year", "unique_hospital_count"]
+alt.Chart(unique_hospitals_per_year).mark_bar(color = "skyblue").encode(
+    alt.X("year:O", title = "Year"),
+    alt.Y("unique_hospital_count:Q", title = "Number of Unique Hospitals")
+).properties(
+    title = "Number of Unique Hospitals Per Year",
+    width = 250,
+    height = 250
+)
+```
+
+    b.
+Compare to the previous plot, the whole plot looks smiliar to each other, and the counts are close for each year as well, which suggests that the data processing and summarization steps were executed correctly. Also, the counts in the number of unique hospitals increase slightly over year in both plots, which may indicate growth in healthcare services, possibly due to increasing demand, changes in policy, or other factors.  
+
+
+## Identify hospital closures in POS file (15 pts) (*)
+
 1. Use this definition to create a list of all hospitals that were active in 2016 that were suspected to have closed by 2019. Record the facility name and zip of each hospital as well as the year of suspected closure (when they become terminated or disappear from the data). How many hospitals are there that fit this definition?
 ```{python}
 pos2018 = pos2018.rename(columns={'ï»¿PRVDR_CTGRY_SBTYP_CD': 'PRVDR_CTGRY_SBTYP_CD'})
@@ -357,7 +445,7 @@ alt_map
 ## Effects of closures on access in Texas (15 pts)
 
 1. Using the corrected hospital closures dataset from the first section, create a list of directly affected zip codes in Texas – that is, those with at least one closure in 2016-2019. Display a table of the number of zip codes vs. the number of closures they experienced.
-可能要改成这个，你看看
+
 ```{python}
 corrected_closed_hospitals["ZIP_CD"] = corrected_closed_hospitals["ZIP_CD"].astype(int)
 merged_tx = zip_codes_tx.merge(corrected_closed_hospitals, left_on = "NAME", right_on = "ZIP_CD", how = "left")
