@@ -107,12 +107,12 @@ print(first_10_hospitals)
 3. However, not all suspected hospital closures are true closures. For example, in the case of a merger, a CMS certification number will be appear to be “terminated,” but then the hospital re-appear under a similar name/address with a new CMS certification number in the next year. As a first pass to address this, remove any suspected hospital closures that are in zip codes where the number of active hospitals does not decrease in the year after the suspected closure.
     a. Among the suspected closures, how many hospitals fit this definition of potentially being a merger/acquisition? After correcting for this, how many hospitals do you have left
 ```{python}
-hospitals_per_zip_year = all_years_filtered.groupby(["ZIP_CD", "Year"]).size().reset_index(name="Active_Hospitals")
+hospitals_per_zip_year = all_years_filtered.groupby(["ZIP_CD", "year"]).size().reset_index(name="Active_Hospitals")
 
 closure_analysis = final_closed_hospitals.merge(
     hospitals_per_zip_year,
     left_on=["ZIP_CD", "Closure_Year"],
-    right_on=["ZIP_CD", "Year"],
+    right_on=["ZIP_CD", "year"],
     how="left"
 )
 
@@ -121,7 +121,7 @@ closure_analysis["Following_Year"] = closure_analysis["Closure_Year"] + 1
 closure_analysis = closure_analysis.merge(
     hospitals_per_zip_year,
     left_on=["ZIP_CD", "Following_Year"],
-    right_on=["ZIP_CD", "Year"],
+    right_on=["ZIP_CD", "year"],
     how="left",
     suffixes=('', '_NextYr')
 )
