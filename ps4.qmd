@@ -309,7 +309,8 @@ crs = CRS.from_wkt(prj_wkt)
 
 print("WKT Projection:", crs.to_wkt())
 ```
-
+* 1 degree is 69 miles
+* To convert the given unit to miles, we can multiply the result by 69.
 5. Calculate the average distance to the nearest hospital for each zip code in Texas. What unit is this in? Report the average distance in miles. Does this value make sense? Map the value for each zip code.
 
     a. What unit is this in?
