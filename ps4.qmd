@@ -49,7 +49,10 @@ warnings.filterwarnings("ignore")
 ```{python}
 pos2018 = pos2018.rename(columns={'ï»¿PRVDR_CTGRY_SBTYP_CD': 'PRVDR_CTGRY_SBTYP_CD'})
 pos2019 = pos2019.rename(columns={'ï»¿PRVDR_CTGRY_SBTYP_CD': 'PRVDR_CTGRY_SBTYP_CD'})
-
+pos2016["year"] = 2016
+pos2017["year"] = 2017
+pos2018["year"] = 2018
+pos2019["year"] = 2019
 all_years = pd.concat([pos2016, pos2017, pos2018, pos2019], ignore_index=True)
 all_years_filtered = all_years[(all_years['PRVDR_CTGRY_SBTYP_CD'] == 1) & (all_years['PRVDR_CTGRY_CD'] == 1)]
 df_2017_2019 = pd.concat([pos2017, pos2018, pos2019], ignore_index=True)
@@ -60,13 +63,13 @@ active_2016 = st_hospitals2016[st_hospitals2016["PGM_TRMNTN_CD"] == 0]
 non_active_2017_2019 = df_2017_2019_filtered[df_2017_2019_filtered["PGM_TRMNTN_CD"] != 0]
 
 merged_hospitals = active_2016.merge(
-    non_active_2017_2019[["PRVDR_NUM", "PGM_TRMNTN_CD", "Year"]],
+    non_active_2017_2019[["PRVDR_NUM", "PGM_TRMNTN_CD", "year"]],
     on="PRVDR_NUM",
     how="left",
     indicator=True
 )
 
-merged_hospitals["Closure_Year"] = merged_hospitals["Year"]
+merged_hospitals["Closure_Year"] = merged_hospitals["year_y"]
 
 closed_hospitals = merged_hospitals[merged_hospitals["_merge"] == "both"]
 
