@@ -298,11 +298,6 @@ print(f"Actual time for the full dataset: {actual_duration_full:.2f} seconds")
 The actual time of 0.75 seconds was much faster than the estimated 1.89 seconds, likely due to initial overhead in the sample skewing the estimate.
 
     c. Look into the .prj file and report which unit it is in. Convert the given unit to miles, using an appropriate conversion you find online (estimates are okay).
-The actual runtime (0.06 seconds) was much faster than the estimated 2.48 seconds. It suggests that the join was less computationally intensive for the full dataset than expected. Small samples may not fully capture efficiencies that spatial indexing or bulk operations provide in larger datasets, leading to an overestimation in time.
-
-5. Calculate the average distance to the nearest hospital for each zip code in Texas. What unit is this in? Report the average distance in miles. Does this value make sense? Map the value for each zip code.
-
-    a. What unit is this in?
 ```{python}
 from pyproj import CRS
 file_path_prj = r"C:\Users\X1\Desktop\Github\fall2024\problem-set-4-ashley-ruiyi\gz_2010_us_860_00_500k\gz_2010_us_860_00_500k.prj"
@@ -313,6 +308,13 @@ with open(file_path_prj, 'r') as f:
 crs = CRS.from_wkt(prj_wkt)
 
 print("WKT Projection:", crs.to_wkt())
+```
+
+5. Calculate the average distance to the nearest hospital for each zip code in Texas. What unit is this in? Report the average distance in miles. Does this value make sense? Map the value for each zip code.
+
+    a. What unit is this in?
+```{python}
+print(zips_texas_centroids.crs)
 ```
 Degrees.
 
