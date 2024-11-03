@@ -45,174 +45,106 @@ warnings.filterwarnings("ignore")
 
 ## Download and explore the Provider of Services (POS) file (10 pts)
 
-1. This is a fairly large dataset and we won’t be using most of the variables. Read through the rest of the problem set and look through the data dictionary to identify which variables you will need to complete the exercise, and use the tool on data.cms.gov into restrict to those variables (“Manage Columns”) before exporting (“Export”). Download this for 2016 and call it pos2016.csv. What are the variables you pulled?
-
-PRVDR_CTGRY_SBTYP_CD == 01 #short-term
-PRVDR_CTGRY_CD == 01 #hospital
-PRVDR_NUM #CMS
-PGM_TRMNTN_CD #termination
-CRTFCTN_ACTN_TYPE_CD == 3 #termination
-ZIP_CD #zip code
-FAC_NAME #facility name
-
-```{python}
-import pandas as pd
-import os
-absolute_path = r"/Users/ashleyliu/Downloads"
-path = os.path.join(absolute_path, "pos2016.csv")
-pos2016 = pd.read_csv(path)
-```
-
-2. Import your pos2016.csv file. We want to focus on short-term hospitals. These are identified as facilities with provider type code 01 and subtype code 01. Subset your data to these facilities. How many hospitals are reported in this data? Does this number make sense? Cross-reference with other sources and cite the number you compared it to. If it differs, why do you think it could differ?
-    a.
-```{python}
-st_hospitals2016 = pos2016[(pos2016["PRVDR_CTGRY_SBTYP_CD"] == 1) & (pos2016["PRVDR_CTGRY_CD"] == 1)]
-st_hospitals2016.shape
-```
-    b.
-There are 7245 hospitals are reported in this data. From Statista, the website, "Number of all hospitals in the United States from 1975 to 2022", shows that there were 5534 hospitals in 2016. Based on these two numbers, there is a discrepancy, and there are many factors can cause this to happen. For example, the difference in definition to count as hospitals, or data errors like dupilication can both cause the difference in numbers.
-
-3. Repeat the previous 3 steps with 2017Q4, 2018Q4, and 2019Q4 and then append them together. Plot the number of observations in your dataset by year.
-
-```{python}
-st_hospitals2016["year"] = 2016
-
-path = os.path.join(absolute_path, "pos2017.csv")
-pos2017 = pd.read_csv(path)
-st_hospitals2017 = pos2017[(pos2017["PRVDR_CTGRY_SBTYP_CD"] == 1) & (pos2017["PRVDR_CTGRY_CD"] == 1)]
-st_hospitals2017["year"] = 2017
-
-pos2018 = pd.read_csv(r"/Users/ashleyliu/Downloads/pos2018.csv", encoding = "latin1")
-st_hospitals2018 = pos2018[(pos2018["ï»¿PRVDR_CTGRY_SBTYP_CD"] == 1) & (pos2018["PRVDR_CTGRY_CD"] == 1)]
-st_hospitals2018["year"] = 2018
-
-pos2019 = pd.read_csv(r"/Users/ashleyliu/Downloads/pos2019.csv", encoding = "latin1")
-st_hospitals2019 = pos2019[(pos2019["ï»¿PRVDR_CTGRY_SBTYP_CD"] == 1) & (pos2019["PRVDR_CTGRY_CD"] == 1)]
-st_hospitals2019["year"] = 2019
-```
-
-```{python}
-combined_df = pd.concat([st_hospitals2016, st_hospitals2017, st_hospitals2018, st_hospitals2019], ignore_index = True)
-import altair as alt
-year_counts = combined_df["year"].value_counts().reset_index()
-year_counts.columns = ["year", "count"]
-alt.Chart(year_counts).mark_bar(color = "skyblue").encode(
-    alt.X("year:O", title = "Year", sort = "ascending"),
-    alt.Y("count:Q", title = "Number of Observations")
-).properties(
-    title = "Number of Observations by Year",
-    width = 250,
-    height = 250
-)
-```
-
-4. Each hospital is identified by its CMS certification number. Plot the number of unique hospitals in your dataset per year. Compare this to your plot in the previous step. What does this tell you about the structure of the data?
-    a.
-```{python}
-unique_hospitals_per_year = (
-    combined_df
-    .groupby("year")["PRVDR_NUM"]
-    .nunique()
-    .reset_index()
-)
-unique_hospitals_per_year.columns = ["year", "unique_hospital_count"]
-alt.Chart(unique_hospitals_per_year).mark_bar(color = "skyblue").encode(
-    alt.X("year:O", title = "Year"),
-    alt.Y("unique_hospital_count:Q", title = "Number of Unique Hospitals")
-).properties(
-    title = "Number of Unique Hospitals Per Year",
-    width = 250,
-    height = 250
-)
-```
-
-    b.
-Compare to the previous plot, the whole plot looks smiliar to each other, and the counts are close for each year as well, which suggests that the data processing and summarization steps were executed correctly. Also, the counts in the number of unique hospitals increase slightly over year in both plots, which may indicate growth in healthcare services, possibly due to increasing demand, changes in policy, or other factors.  
-
-
-## Identify hospital closures in POS file (15 pts) (*)
-
 1. Use this definition to create a list of all hospitals that were active in 2016 that were suspected to have closed by 2019. Record the facility name and zip of each hospital as well as the year of suspected closure (when they become terminated or disappear from the data). How many hospitals are there that fit this definition?
-
 ```{python}
-active_2016 = pos2016[pos2016['PGM_TRMNTN_CD'] == 0][['PRVDR_NUM', 'FAC_NAME', 'ZIP_CD']]
-filter_2017 = pd.merge(active_2016, pos2017, on='PRVDR_NUM', how='left')
+pos2018 = pos2018.rename(columns={'ï»¿PRVDR_CTGRY_SBTYP_CD': 'PRVDR_CTGRY_SBTYP_CD'})
+pos2019 = pos2019.rename(columns={'ï»¿PRVDR_CTGRY_SBTYP_CD': 'PRVDR_CTGRY_SBTYP_CD'})
 
-df_filtered_2017 = filter_2017[(filter_2017['PGM_TRMNTN_CD'] != 0) & (filter_2017['PGM_TRMNTN_CD'].notna())]
-
-df_filtered_2017['closureday'] = 2017
+all_years = pd.concat([pos2016, pos2017, pos2018, pos2019], ignore_index=True)
+all_years_filtered = all_years[(all_years['PRVDR_CTGRY_SBTYP_CD'] == 1) & (all_years['PRVDR_CTGRY_CD'] == 1)]
+df_2017_2019 = pd.concat([pos2017, pos2018, pos2019], ignore_index=True)
+df_2017_2019_filtered = df_2017_2019[(df_2017_2019['PRVDR_CTGRY_SBTYP_CD'] == 1) & (df_2017_2019['PRVDR_CTGRY_CD'] == 1)]
 ```
 ```{python}
-active_2017 = pos2017[pos2017['PGM_TRMNTN_CD'] == 0][['PRVDR_NUM', 'FAC_NAME', 'ZIP_CD']]
-filter_2018 = pd.merge(active_2017, pos2018, on='PRVDR_NUM', how='left')
+active_2016 = st_hospitals2016[st_hospitals2016["PGM_TRMNTN_CD"] == 0]
+non_active_2017_2019 = df_2017_2019_filtered[df_2017_2019_filtered["PGM_TRMNTN_CD"] != 0]
 
-df_filtered_2018 = filter_2018[(filter_2018['PGM_TRMNTN_CD'] != 0) & (filter_2018['PGM_TRMNTN_CD'].notna())]
+merged_hospitals = active_2016.merge(
+    non_active_2017_2019[["PRVDR_NUM", "PGM_TRMNTN_CD", "Year"]],
+    on="PRVDR_NUM",
+    how="left",
+    indicator=True
+)
 
-df_filtered_2018['closureday'] = 2018
+merged_hospitals["Closure_Year"] = merged_hospitals["Year"]
+
+closed_hospitals = merged_hospitals[merged_hospitals["_merge"] == "both"]
+
+disappeared_hospitals = active_2016[~active_2016["PRVDR_NUM"].isin(df_2017_2019_filtered["PRVDR_NUM"])]
+disappeared_hospitals = disappeared_hospitals.assign(Closure_Year=2017)
+
+all_closed_hospitals = pd.concat([closed_hospitals, disappeared_hospitals], ignore_index=True)
+
+all_closed_hospitals.sort_values(by=["PRVDR_NUM", "Closure_Year"], ascending=[False, True], inplace=True)
+
+final_closed_hospitals = all_closed_hospitals.groupby("PRVDR_NUM").aggregate(
+    FAC_NAME=("FAC_NAME", "first"),
+    ZIP_CD=("ZIP_CD", "first"),
+    Closure_Year=("Closure_Year", "first")
+).reset_index()
+
+final_closed_hospitals["ZIP_CD"] = final_closed_hospitals["ZIP_CD"].astype(int)
+final_closed_hospitals["Closure_Year"] = final_closed_hospitals["Closure_Year"].astype(int)
+
+num_closed_hospitals = final_closed_hospitals.shape[0]
+print(num_closed_hospitals)
 ```
-```{python}
-active_2018 = pos2018[pos2018['PGM_TRMNTN_CD'] == 0][['PRVDR_NUM', 'FAC_NAME', 'ZIP_CD']]
-filter_2019 = pd.merge(active_2018, pos2019, on='PRVDR_NUM', how='left')
 
-df_filtered_2019 = filter_2019[(filter_2019['PGM_TRMNTN_CD'] != 0) & (filter_2019['PGM_TRMNTN_CD'].notna())]
-
-df_filtered_2019['closureday'] = 2019
-```
-```{python}
-result_1 = pd.concat([df_filtered_2017, df_filtered_2018, df_filtered_2019], ignore_index=True)
-result = result_1[['PRVDR_NUM', 'FAC_NAME_x', 'ZIP_CD_x', 'closureday']]
-result
-```
-There are 5642 hospitals that fit this definition.
+There are 174 hospitals that fit this definition.
 
 2. Sort this list of hospitals by name and report the names and year of suspected closure for the first 10 rows.
 ```{python}
-result = result.sort_values(by='FAC_NAME_x').reset_index(drop=True)
-result = result.rename(columns={'FAC_NAME_x': 'FAC_NAME'})
-result = result.rename(columns={'ZIP_CD_x': 'ZIP_CD'})
-result.head(10)
+sorted_hospitals = final_closed_hospitals.sort_values(by="FAC_NAME")
+
+first_10_hospitals = sorted_hospitals[['FAC_NAME', 'Closure_Year']].head(10)
+print("First 10 hospitals sorted by name with suspected closure year:")
+print(first_10_hospitals)
 ```
 
 3. However, not all suspected hospital closures are true closures. For example, in the case of a merger, a CMS certification number will be appear to be “terminated,” but then the hospital re-appear under a similar name/address with a new CMS certification number in the next year. As a first pass to address this, remove any suspected hospital closures that are in zip codes where the number of active hospitals does not decrease in the year after the suspected closure.
     a. Among the suspected closures, how many hospitals fit this definition of potentially being a merger/acquisition? After correcting for this, how many hospitals do you have left
 ```{python}
-active_counts_2017 = pos2017[pos2017['PGM_TRMNTN_CD'] == 0].groupby('ZIP_CD').size().rename('active_2017')
-active_counts_2018 = pos2018[pos2018['PGM_TRMNTN_CD'] == 0].groupby('ZIP_CD').size().rename('active_2018')
-active_counts_2019 = pos2019[pos2019['PGM_TRMNTN_CD'] == 0].groupby('ZIP_CD').size().rename('active_2019')
-result_1 = result_1.rename(columns={'ZIP_CD_x': 'ZIP_CD'})
-result_2 = result_1.merge(active_counts_2017, on='ZIP_CD', how='left')
-result_3 = result_2.merge(active_counts_2018, on='ZIP_CD', how='left')
-result_4 = result_3.merge(active_counts_2019, on='ZIP_CD', how='left')
+hospitals_per_zip_year = all_years_filtered.groupby(["ZIP_CD", "Year"]).size().reset_index(name="Active_Hospitals")
 
-def is_true_closure(row):
-    if row['closureday'] == 2017:
-        return row['active_2017'] > row['active_2018']
-    elif row['closureday'] == 2018:
-        return row['active_2018'] > row['active_2019']
-    elif row['closureday'] == 2019:
-        return pd.notna(row['active_2019'])
-    return False
+closure_analysis = final_closed_hospitals.merge(
+    hospitals_per_zip_year,
+    left_on=["ZIP_CD", "Closure_Year"],
+    right_on=["ZIP_CD", "Year"],
+    how="left"
+)
 
-result_4['true_closure'] = result_4.apply(is_true_closure, axis=1)
-potential_mergers = result_4[~result_4['true_closure']]
-result_4 = result_4[result_4['true_closure']]
+closure_analysis["Following_Year"] = closure_analysis["Closure_Year"] + 1
 
-final_count = result_4.shape[0]
-potential_merger_count = potential_mergers.shape[0]
+closure_analysis = closure_analysis.merge(
+    hospitals_per_zip_year,
+    left_on=["ZIP_CD", "Following_Year"],
+    right_on=["ZIP_CD", "Year"],
+    how="left",
+    suffixes=('', '_NextYr')
+)
 
-final_count, potential_merger_count
+closure_analysis["Merger_Possible"] = (
+    closure_analysis["Active_Hospitals_NextYr"] >= closure_analysis["Active_Hospitals"]
+)
+
+corrected_closed_hospitals = closure_analysis[~closure_analysis["Merger_Possible"]]
+
+merger_suspects_count = closure_analysis["Merger_Possible"].sum()
+
+remaining_hospitals_count = corrected_closed_hospitals.shape[0]
+
+print("Potential mergers/acquisitions:", merger_suspects_count)
+print("Hospitals remaining after correction:", remaining_hospitals_count)
 ```
-3118 hospitals fit this definition of potentially being a merger/acquisition.
-After correcting for this, 2524 hospitals have left.
 
-    b. Sort this list of corrected hospital closures by name and report the first 10 rows.
+96 hospitals fit this definition of potentially being a merger/acquisition.
+After correcting for this, 78 hospitals have left.
+
+b. Sort this list of corrected hospital closures by name and report the first 10 rows.
+
 ```{python}
-result_4 = result_4[['PRVDR_NUM', 'FAC_NAME_x', 'ZIP_CD', 'closureday', 'PRVDR_CTGRY_SBTYP_CD', 'PRVDR_CTGRY_CD', 'PGM_TRMNTN_CD', 'CRTFCTN_ACTN_TYPE_CD']]
-result_4 = result_4.rename(columns={'FAC_NAME_x': 'FAC_NAME'})
-result_sorted = result_4.sort_values(by='FAC_NAME').reset_index(drop=True)
-top_10_closures = result_sorted.head(10)
-
-top_10_closures
+sorted_closures = corrected_closed_hospitals.sort_values(by="FAC_NAME").head(10)
+sorted_closures
 ```
 
 ## Download Census zip code shapefile (10 pt) 
@@ -268,6 +200,7 @@ zips_all_centroids = zip_codes.set_geometry("centroid")
 dimensions = zips_all_centroids.shape
 print(f"Dimensions of the GeoDataFrame: {dimensions}")
 ```
+
 GEO_ID: A unique geographic identifier assigned to each area by the Census Bureau. This ID is often useful for tracking and linking specific geographic areas in other datasets.
 
 ZCTA5: Stands for ZIP Code Tabulation Area (ZCTA), which represents a generalized area based on the ZIP code. ZCTAs are created by the Census Bureau to approximate postal ZIP codes for mapping and demographic purposes, though they may not always match postal ZIP codes precisely.
@@ -297,88 +230,119 @@ unique_texas_zipcodes, unique_borderstates_zipcodes
 
 3. Then create a subset of zips_texas_borderstates_centroids that contains only the zip codes with at least 1 hospital in 2016. Call the resulting Geo-DataFrame zips_withhospital_centroids What kind of merge did you decide to do, and what variable are you merging on?
 ```{python}
-pos2016['ZIP_CD'] = pos2016['ZIP_CD'].astype(str).str.split('.').str[0].str.zfill(5)
+st_hospitals2016['ZIP_CD'] = st_hospitals2016['ZIP_CD'].astype(str).str.split('.').str[0].str.zfill(5)
 
-zips_texas_borderstates_centroids = zips_texas_borderstates_centroids.copy()  # Make a copy to avoid warning
+zips_texas_borderstates_centroids = zips_texas_borderstates_centroids.copy()
+
 zips_texas_borderstates_centroids['ZCTA5'] = zips_texas_borderstates_centroids['ZCTA5'].astype(str).str.zfill(5)
-
 zips_texas_borderstates_centroids = zips_texas_borderstates_centroids.rename(columns={'ZCTA5': 'ZIP_CD'})
 
+active_hospitals_2016 = st_hospitals2016[st_hospitals2016['PGM_TRMNTN_CD'] == 0][['ZIP_CD']].drop_duplicates()
+
 zips_withhospital_centroids = zips_texas_borderstates_centroids.merge(
-    pos2016, on='ZIP_CD', how='inner')
+    active_hospitals_2016, on='ZIP_CD', how='inner'
+)
+
+print(zips_withhospital_centroids.head())
 ```
-An inner merge on the `ZIP_CD` variable was used to match ZIP codes between `zips_texas_borderstates_centroids` and `pos2016`. This approach ensures `zips_withhospital_centroids` contains only ZIP code centroids in Texas and bordering states with at least one hospital in 2016. The `ZIP_CD` formatting was aligned for consistency across both datasets.
+
+An inner merge on the `ZIP_CD` variable was used to match ZIP codes between `zips_texas_borderstates_centroids` and `st_hospitals2016`. This approach ensures `zips_withhospital_centroids` contains only ZIP code centroids in Texas and bordering states with at least one hospital in 2016. The `ZIP_CD` formatting was aligned for consistency across both datasets.
 
 4. For each zip code in zips_texas_centroids, calculate the distance to the nearest zip code with at least one hospital in zips_withhospital_centroids.
     a. This is a computationally-intensive join. Before attempting to do the entire join, subset to 10 zip codes in zips_texas_centroids and try the join. How long did it take? Approximately how long do you estimate the entire procedure will take?
 ```{python}
 import time
+from shapely.ops import nearest_points
 
-projected_zips_texas_centroids = zips_texas_centroids.to_crs(epsg=5070)
-projected_zips_withhospital_centroids = zips_withhospital_centroids.to_crs(epsg=5070)
-
-sample_zips = projected_zips_texas_centroids.sample(10, random_state=1)
+sample_zips_texas = zips_texas_centroids.sample(10, random_state=1)
 
 start_time = time.time()
-sample_distances = gpd.sjoin_nearest(
-    sample_zips,
-    projected_zips_withhospital_centroids,
-    how="inner",
-    distance_col="distance"
-)
+
+distances = []
+
+for zip_code_geom in sample_zips_texas.geometry:
+    nearest_geom = nearest_points(zip_code_geom, zips_withhospital_centroids.unary_union)[1]
+    
+    distance = zip_code_geom.distance(nearest_geom)
+    distances.append(distance)
+
 end_time = time.time()
-sample_time = end_time - start_time
 
-estimated_total_time = (sample_time / 10) * len(projected_zips_texas_centroids)
+sample_duration = end_time - start_time
+print(f"Time taken for 10 zip codes: {sample_duration:.2f} seconds")
 
-print(f"Sample time for 10 zip codes: {sample_time:.2f} seconds")
-print(f"Estimated total time for all zip codes: {estimated_total_time:.2f} seconds")
+estimated_time_full = (sample_duration / 10) * len(zips_texas_centroids)
+print(f"Estimated time for all zip codes: {estimated_time_full:.2f} seconds")
 ```
+
     b. Now try doing the full calculation and time how long it takes. How close is it to your estimation?
 ```{python}
-start_time_all =time.time()
-all_distances = gpd.sjoin_nearest(
-    projected_zips_texas_centroids,
-    projected_zips_withhospital_centroids,
-    how="inner",
-    distance_col="distance"
-)
-end_time_all = time.time()
-all_time = end_time_all - start_time_all
-print(f"Actual total time for all zip codes: {all_time:.2f} seconds")
+start_time_full = time.time()
+
+all_distances = []
+
+for zip_code_geom in zips_texas_centroids.geometry:
+    nearest_geom = nearest_points(zip_code_geom, zips_withhospital_centroids.unary_union)[1]
+    
+    distance = zip_code_geom.distance(nearest_geom)
+    all_distances.append(distance)
+
+end_time_full = time.time()
+
+actual_duration_full = end_time_full - start_time_full
+print(f"Actual time for the full dataset: {actual_duration_full:.2f} seconds")
 ```
+The actual time of 0.75 seconds was much faster than the estimated 1.89 seconds, likely due to initial overhead in the sample skewing the estimate.
+
     c. Look into the .prj file and report which unit it is in. Convert the given unit to miles, using an appropriate conversion you find online (estimates are okay).
-The actual runtime (0.06 seconds) was much faster than the estimated 2.48 seconds, likely due to sample time variability, GeoPandas optimizations for larger datasets, and improved efficiency from using a projected coordinate system. This discrepancy shows how appropriate transformations and processing methods can greatly enhance computation speed.
+The actual runtime (0.06 seconds) was much faster than the estimated 2.48 seconds. It suggests that the join was less computationally intensive for the full dataset than expected. Small samples may not fully capture efficiencies that spatial indexing or bulk operations provide in larger datasets, leading to an overestimation in time.
 
 5. Calculate the average distance to the nearest hospital for each zip code in Texas. What unit is this in? Report the average distance in miles. Does this value make sense? Map the value for each zip code.
+
+    a. What unit is this in?
 ```{python}
-average_distance = all_distances["distance"].mean()
-print(f"Average distance to nearest hospital: {average_distance:.2f} meters")
-average_distance_miles = average_distance / 1609.344
+from pyproj import CRS
+file_path_prj = r"C:\Users\X1\Desktop\Github\fall2024\problem-set-4-ashley-ruiyi\gz_2010_us_860_00_500k\gz_2010_us_860_00_500k.prj"
+
+with open(file_path_prj, 'r') as f:
+    prj_wkt = f.read()
+
+crs = CRS.from_wkt(prj_wkt)
+
+print("WKT Projection:", crs.to_wkt())
+```
+Degrees.
+
+    b. Report the average distance in miles. Does this value make sense?# Calculate the average distance in degrees
+```{python}
+average_distance_degrees = sum(all_distances) / len(all_distances)
+
+#1 degree ≈ 69 miles
+average_distance_miles = average_distance_degrees * 69
+
+# Print the average distance in miles
 print(f"Average distance to nearest hospital: {average_distance_miles:.2f} miles")
 ```
-    a. What unit is this in?
-Meter.
-    b. Report the average distance in miles. Does this value make sense?
-3.34 miles. An average distance of 3.34 miles to the nearest hospital for Texas zip codes seems reasonable, particularly for urban or suburban areas where hospitals are relatively accessible. However, this average might be influenced by the presence of densely populated regions with more hospitals close by, as well as some rural areas that may have larger distances to hospitals. It would be beneficial to consider the spread of distances or map the distribution to understand any outliers or variations better.
+14.56 miles. An average distance of 14.56 miles to the nearest hospital for Texas zip codes seems reasonable, particularly for urban or suburban areas where hospitals are relatively accessible. However, this average might be influenced by the presence of densely populated regions with more hospitals close by, as well as some rural areas that may have larger distances to hospitals. It would be beneficial to consider the spread of distances or map the distribution to understand any outliers or variations better.
+
     c. Map the value for each zip code.
 ```{python}
-alt.data_transformers.enable("default", max_rows=None)
-all_distances["centroid_x"] = all_distances.geometry.centroid.x
-all_distances["centroid_y"] = all_distances.geometry.centroid.y
-all_distances["distance_miles"] = all_distances["distance"] / 1609.34
+zips_texas_centroids['Distance_to_Nearest_Hospital'] = [distance * 69 for distance in all_distances]
 
-all_distances_df = all_distances[["centroid_x", "centroid_y", "distance_miles", "ZCTA5"]].copy()
+zips_texas_centroids['longitude'] = zips_texas_centroids.geometry.centroid.x
+zips_texas_centroids['latitude'] = zips_texas_centroids.geometry.centroid.y
 
-alt_map = alt.Chart(all_distances_df).mark_circle().encode(
-    longitude="centroid_x:Q",
-    latitude="centroid_y:Q",
-    color=alt.Color("distance_miles:Q", scale=alt.Scale(scheme="blues"), title="Distance to Nearest Hospital (miles)"),
-    tooltip=["ZCTA5:O", "distance_miles:Q"]
+altair_data = zips_texas_centroids[['longitude', 'latitude', 'Distance_to_Nearest_Hospital']].copy()
+
+alt_map = alt.Chart(altair_data).mark_circle(size=30).encode(
+    longitude='longitude:Q',
+    latitude='latitude:Q',
+    color=alt.Color('Distance_to_Nearest_Hospital:Q', scale=alt.Scale(scheme='purples'), title='Distance to Nearest Hospital (miles)'),
+    tooltip=['Distance_to_Nearest_Hospital:Q']
 ).properties(
     width=600,
     height=400,
-    title="Distance to Nearest Hospital by Texas Zip Code"
+    title='Average Distance to Nearest Hospital for Each Zip Code in Texas (miles)'
 )
 
 alt_map
@@ -387,7 +351,16 @@ alt_map
 ## Effects of closures on access in Texas (15 pts)
 
 1. Using the corrected hospital closures dataset from the first section, create a list of directly affected zip codes in Texas – that is, those with at least one closure in 2016-2019. Display a table of the number of zip codes vs. the number of closures they experienced.
+可能要改成这个，你看看
+```{python}
+final_closed_hospitals_corrected["ZIP_CD"] = final_closed_hospitals_corrected["ZIP_CD"].astype(int)
+merged_tx = zip_codes_tx.merge(final_closed_hospitals_corrected, left_on = "NAME", right_on = "ZIP_CD", how = "left")
+merged_tx = merged_tx.dropna(subset=["ZIP_CD"])
+closures_per_zip = merged_tx.groupby("NAME").size().reset_index(name = "closure_count")
 
+zip_code_closure_summary = closures_per_zip.groupby("closure_count").size().reset_index(name = "zip_code_count")
+zip_code_closure_summary
+```
 ```{python}
 result_4["ZIP_CD"] = result_4["ZIP_CD"].astype(int)
 merged_tx = zip_codes_tx.merge(result_4, left_on = "NAME", right_on = "ZIP_CD", how = "left")
